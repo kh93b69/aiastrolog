@@ -52,6 +52,14 @@ def health():
     return {"status": "ok", "app": "AI Astrolog"}
 
 
+@app.get("/debug")
+def debug():
+    """Временный дебаг — проверяем пути к фронтенду"""
+    exists = os.path.exists(STATIC_DIR)
+    files = os.listdir(STATIC_DIR) if exists else []
+    return {"static_dir": STATIC_DIR, "exists": exists, "files": files}
+
+
 @app.post("/api/user/register")
 def register_user(data: UserCreate):
     """Регистрация пользователя (или возврат существующего)"""
