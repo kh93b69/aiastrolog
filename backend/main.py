@@ -1,5 +1,8 @@
+import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
 import database as db
@@ -14,6 +17,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Путь к собранному фронтенду
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 
 
 # === Модели запросов ===
@@ -41,8 +47,8 @@ class HoroscopeRequest(BaseModel):
 
 # === Эндпоинты ===
 
-@app.get("/")
-def root():
+@app.get("/health")
+def health():
     return {"status": "ok", "app": "AI Astrolog"}
 
 
@@ -145,3 +151,16 @@ def reset_limits():
     """Сброс лимитов (вызывать по понедельникам через cron)"""
     db.reset_all_limits()
     return {"status": "ok", "message": "Лимиты сброшены"}
+
+
+# Раздача фронтенда — статика и SPA fallback
+if os.path.exists(STATIC_DIR):
+    app.mount("/assets", StaticFiles(directory=os.path.join(STATIC_DIR, "assets")), name="assets")
+
+    @app.get("/{path:path}")
+    def serve_frontend(path: str):
+        """Отдаём index.html для всех маршрутов (SPA)"""
+        file_path = os.path.join(STATIC_DIR, path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(STATIC_DIR, "index.html"))

@@ -1,4 +1,5 @@
 """Запуск FastAPI сервера и Telegram бота одновременно"""
+import os
 import asyncio
 import uvicorn
 from bot import bot, dp
@@ -12,9 +13,10 @@ async def start_bot():
 
 async def start_api():
     """Запуск API сервера"""
-    config = uvicorn.Config("main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.getenv("PORT", 8000))
+    config = uvicorn.Config("main:app", host="0.0.0.0", port=port)
     server = uvicorn.Server(config)
-    print("API сервер запущен на http://localhost:8000")
+    print(f"API сервер запущен на порту {port}")
     await server.serve()
 
 
