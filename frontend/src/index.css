@@ -1,0 +1,128 @@
+@import "tailwindcss";
+
+/* Мистическая тёмная тема */
+:root {
+  --primary: #8b5cf6;
+  --primary-glow: #a78bfa;
+  --bg-dark: #0a0a1a;
+  --bg-card: #1a1a2e;
+  --bg-card-hover: #25254a;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --accent-gold: #fbbf24;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-dark);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Звёздный фон */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.3), transparent),
+    radial-gradient(1px 1px at 40% 70%, rgba(255,255,255,0.2), transparent),
+    radial-gradient(1px 1px at 60% 20%, rgba(255,255,255,0.3), transparent),
+    radial-gradient(1px 1px at 80% 50%, rgba(255,255,255,0.15), transparent),
+    radial-gradient(1.5px 1.5px at 10% 80%, rgba(255,255,255,0.25), transparent),
+    radial-gradient(1px 1px at 70% 90%, rgba(255,255,255,0.2), transparent),
+    radial-gradient(1.5px 1.5px at 90% 10%, rgba(255,255,255,0.2), transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+}
+
+/* Мистическое свечение для карточек */
+.mystic-card {
+  background: var(--bg-card);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 16px;
+  padding: 24px;
+  transition: all 0.3s ease;
+}
+
+.mystic-card:hover {
+  border-color: rgba(139, 92, 246, 0.5);
+  box-shadow: 0 0 30px rgba(139, 92, 246, 0.15);
+}
+
+/* Кнопка с градиентом */
+.mystic-btn {
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 28px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.mystic-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4);
+}
+
+.mystic-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Анимация появления */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeInUp 0.6s ease forwards;
+}
+
+/* Анимация для карт Таро */
+@keyframes cardFlip {
+  0% { transform: rotateY(180deg) scale(0.8); opacity: 0; }
+  100% { transform: rotateY(0) scale(1); opacity: 1; }
+}
+
+.tarot-card-animate {
+  animation: cardFlip 0.8s ease forwards;
+}
+
+/* Спиннер загрузки */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(139, 92, 246, 0.2);
+  border-top-color: #8b5cf6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 20px auto;
+}

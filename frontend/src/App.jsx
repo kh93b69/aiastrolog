@@ -1,0 +1,189 @@
+import { useState, useEffect } from 'react';
+import WelcomeScreen from './components/WelcomeScreen';
+import OnboardingScreen from './components/OnboardingScreen';
+import Dashboard from './components/Dashboard';
+import HoroscopeScreen from './components/HoroscopeScreen';
+import TarotScreen from './components/TarotScreen';
+import { registerUser, updateProfile, getUser, getHoroscope, getTarotReading } from './api';
+
+// Получаем telegram_id из Telegram WebApp или используем тестовый
+function getTelegramUser() {
+  if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
+    const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
+    return { id: tgUser.id, username: tgUser.username };
+  }
+  // Тестовый режим (для разработки без Telegram)
+  return { id: 123456789, username: 'test_user' };
+}
+
+function App() {
+  // Экраны: welcome, onboarding, dashboard, horoscope, tarot
+  const [screen, setScreen] = useState('welcome');
+  const [user, setUser] = useState(null);
+  const [limits, setLimits] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Данные для экранов
+  const [horoscope, setHoroscope] = useState(null);
+  const [tarotCards, setTarotCards] = useState(null);
+  const [tarotReading, setTarotReading] = useState(null);
+
+  const tgUser = getTelegramUser();
+
+  // Настраиваем Telegram WebApp
+  useEffect(() => {
+    if (window.Telegram?.WebApp) {
+      window.Telegram.WebApp.ready();
+      window.Telegram.WebApp.expand();
+    }
+  }, []);
+
+  // Начать путь — регистрация
+  async function handleStart() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await registerUser(tgUser.id, tgUser.username);
+      setUser(res.data.user);
+      setLimits(res.data.limits);
+
+      if (res.data.user.onboarding_done) {
+        setScreen('dashboard');
+      } else {
+        setScreen('onboarding');
+      }
+    } catch (err) {
+      setError('Ошибка подключения к серверу');
+    }
+    setLoading(false);
+  }
+
+  // Сохранение профиля
+  async function handleOnboarding(birthDate, birthTime, birthPlace) {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await updateProfile(tgUser.id, birthDate, birthTime, birthPlace);
+      setUser(res.data.user);
+      setScreen('dashboard');
+    } catch (err) {
+      setError('Ошибка сохранения профиля');
+    }
+    setLoading(false);
+  }
+
+  // Получить прогноз
+  async function handleHoroscope() {
+    setScreen('horoscope');
+    setHoroscope(null);
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await getHoroscope(tgUser.id);
+      setHoroscope(res.data.horoscope);
+      setLimits(res.data.limits);
+    } catch (err) {
+      if (err.response?.status === 429) {
+        setError('Лимит прогнозов исчерпан на этой неделе');
+      } else {
+        setError('Ошибка получения прогноза');
+      }
+      setScreen('dashboard');
+    }
+    setLoading(false);
+  }
+
+  // Получить расклад Таро
+  async function handleTarot() {
+    setScreen('tarot');
+    setTarotCards(null);
+    setTarotReading(null);
+  }
+
+  async function handleTarotSubmit(question) {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await getTarotReading(tgUser.id, question);
+      setTarotCards(res.data.cards);
+      setTarotReading(res.data.reading);
+      setLimits(res.data.limits);
+    } catch (err) {
+      if (err.response?.status === 429) {
+        setError('Лимит раскладов исчерпан на этой неделе');
+      } else {
+        setError('Ошибка получения расклада');
+      }
+      setScreen('dashboard');
+    }
+    setLoading(false);
+  }
+
+  // Назад к дашборду
+  function goBack() {
+    setScreen('dashboard');
+    setHoroscope(null);
+    setTarotCards(null);
+    setTarotReading(null);
+  }
+
+  // Обновить данные пользователя
+  async function refreshUser() {
+    try {
+      const res = await getUser(tgUser.id);
+      setUser(res.data.user);
+      setLimits(res.data.limits);
+    } catch (err) {
+      // молча игнорируем
+    }
+  }
+
+  return (
+    <div>
+      {/* Ошибка */}
+      {error && (
+        <div className="fixed top-4 left-4 right-4 z-50 bg-red-500/20 border border-red-500/50 text-red-300 px-4 py-3 rounded-xl text-center text-sm">
+          {error}
+          <button onClick={() => setError(null)} className="ml-3 text-red-400">✕</button>
+        </div>
+      )}
+
+      {screen === 'welcome' && (
+        <WelcomeScreen onStart={handleStart} />
+      )}
+
+      {screen === 'onboarding' && (
+        <OnboardingScreen onComplete={handleOnboarding} loading={loading} />
+      )}
+
+      {screen === 'dashboard' && (
+        <Dashboard
+          limits={limits}
+          onHoroscope={handleHoroscope}
+          onTarot={handleTarot}
+        />
+      )}
+
+      {screen === 'horoscope' && (
+        <HoroscopeScreen
+          horoscope={horoscope}
+          loading={loading}
+          onBack={goBack}
+        />
+      )}
+
+      {screen === 'tarot' && (
+        <TarotScreen
+          onSubmit={handleTarotSubmit}
+          reading={tarotReading}
+          cards={tarotCards}
+          loading={loading}
+          onBack={goBack}
+        />
+      )}
+    </div>
+  );
+}
+
+export default App;
