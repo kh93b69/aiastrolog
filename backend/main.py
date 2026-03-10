@@ -157,9 +157,14 @@ def reset_limits():
 if os.path.exists(STATIC_DIR):
     app.mount("/assets", StaticFiles(directory=os.path.join(STATIC_DIR, "assets")), name="assets")
 
+    @app.get("/")
+    def serve_index():
+        """Главная страница"""
+        return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
     @app.get("/{path:path}")
     def serve_frontend(path: str):
-        """Отдаём index.html для всех маршрутов (SPA)"""
+        """Отдаём файл или index.html для SPA"""
         file_path = os.path.join(STATIC_DIR, path)
         if os.path.isfile(file_path):
             return FileResponse(file_path)
