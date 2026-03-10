@@ -66,6 +66,8 @@ def register_user(data: UserCreate):
     user = db.get_user(data.telegram_id)
     if user:
         limits = db.get_user_limits(data.telegram_id)
+        if not limits:
+            limits = db.create_user_limits(data.telegram_id)
         return {"user": user, "limits": limits}
 
     user = db.create_user(data.telegram_id, data.username)
