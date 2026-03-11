@@ -3,8 +3,29 @@
 Рассчитывает натальную карту и текущие транзиты планет
 с помощью библиотеки kerykeion.
 """
+import requests
 from datetime import datetime
 from kerykeion import AstrologicalSubject
+
+
+def geocode_city(city_name):
+    """
+    Получить координаты города через OpenStreetMap Nominatim.
+    Возвращает (широта, долгота, timezone) или None.
+    """
+    url = "https://nominatim.openstreetmap.org/search"
+    params = {
+        "q": city_name,
+        "format": "json",
+        "limit": 1,
+        "accept-language": "en",
+    }
+    headers = {"User-Agent": "AIAstrolog/1.0"}
+    resp = requests.get(url, params=params, headers=headers, timeout=10)
+    data = resp.json()
+    if data:
+        return float(data[0]["lat"]), float(data[0]["lon"])
+    return None
 
 
 # Названия планет на русском
@@ -90,11 +111,20 @@ def calculate_natal_chart(birth_date, birth_time, birth_place):
     hour = int(time_parts[0])
     minute = int(time_parts[1]) if len(time_parts) > 1 else 0
 
-    # Создаём астрологический субъект
+    # Получаем координаты города
+    coords = geocode_city(birth_place)
+    if not coords:
+        raise ValueError(f"Город не найден: {birth_place}")
+
+    lat, lng = coords
+
+    # Создаём астрологический субъект с координатами
     subject = AstrologicalSubject(
         "User",
         year, month, day,
         hour, minute,
+        lng=lng,
+        lat=lat,
         city=birth_place,
     )
 
@@ -149,10 +179,13 @@ def get_current_transits():
     """
     now = datetime.now()
 
+    # Гринвич — фиксированные координаты
     transit_subject = AstrologicalSubject(
         "Transit",
         now.year, now.month, now.day,
         now.hour, now.minute,
+        lng=0.0,
+        lat=51.4769,
         city="Greenwich",
     )
 
