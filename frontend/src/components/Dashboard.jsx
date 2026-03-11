@@ -1,4 +1,4 @@
-export default function Dashboard({ limits, onHoroscope, onTarot }) {
+export default function Dashboard({ limits, onHoroscope, onTarot, onNatalChart }) {
   const horoscopeLeft = limits ? limits.horoscope_limit - limits.horoscope_used : 0;
   const tarotLeft = limits ? limits.tarot_limit - limits.tarot_used : 0;
 
@@ -33,18 +33,34 @@ export default function Dashboard({ limits, onHoroscope, onTarot }) {
           </div>
         </div>
 
+        {/* Натальная карта */}
+        <div
+          className="mystic-card mb-4 cursor-pointer active:scale-[0.98] transition-transform"
+          onClick={onNatalChart}
+        >
+          <div className="flex items-center gap-4">
+            <div className="text-4xl">🌌</div>
+            <div>
+              <h3 className="font-semibold text-lg">Натальная карта</h3>
+              <p className="text-sm text-slate-400">
+                Твоя карта звёзд и планет
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Карточка прогноза */}
         <div
-          className="mystic-card mb-4 cursor-pointer"
+          className="mystic-card mb-4 cursor-pointer active:scale-[0.98] transition-transform"
           onClick={horoscopeLeft > 0 ? onHoroscope : undefined}
           style={{ opacity: horoscopeLeft > 0 ? 1 : 0.5 }}
         >
           <div className="flex items-center gap-4">
             <div className="text-4xl">⭐</div>
             <div>
-              <h3 className="font-semibold text-lg">Прогноз на день</h3>
+              <h3 className="font-semibold text-lg">Звёздный чек-ап</h3>
               <p className="text-sm text-slate-400">
-                Персональный астрологический прогноз
+                Прогноз на день по транзитам
               </p>
             </div>
           </div>
@@ -57,16 +73,16 @@ export default function Dashboard({ limits, onHoroscope, onTarot }) {
 
         {/* Карточка Таро */}
         <div
-          className="mystic-card cursor-pointer"
+          className="mystic-card cursor-pointer active:scale-[0.98] transition-transform"
           onClick={tarotLeft > 0 ? onTarot : undefined}
           style={{ opacity: tarotLeft > 0 ? 1 : 0.5 }}
         >
           <div className="flex items-center gap-4">
             <div className="text-4xl">🃏</div>
             <div>
-              <h3 className="font-semibold text-lg">Расклад Таро</h3>
+              <h3 className="font-semibold text-lg">Астро-Таро</h3>
               <p className="text-sm text-slate-400">
-                3 карты — Прошлое, Настоящее, Будущее
+                Расклад карт с привязкой к натальной карте
               </p>
             </div>
           </div>

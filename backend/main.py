@@ -224,8 +224,11 @@ if os.path.exists(STATIC_DIR):
 
     @app.get("/")
     def serve_index():
-        """Главная страница"""
-        return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+        """Главная страница — без кеша чтобы Telegram подтягивал свежую версию"""
+        response = FileResponse(os.path.join(STATIC_DIR, "index.html"))
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        return response
 
     @app.get("/{path:path}")
     def serve_frontend(path: str):
@@ -233,4 +236,7 @@ if os.path.exists(STATIC_DIR):
         file_path = os.path.join(STATIC_DIR, path)
         if os.path.isfile(file_path):
             return FileResponse(file_path)
-        return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+        response = FileResponse(os.path.join(STATIC_DIR, "index.html"))
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        return response

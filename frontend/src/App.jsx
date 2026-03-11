@@ -90,6 +90,23 @@ function App() {
     setLoading(false);
   }
 
+  // Открыть натальную карту с дашборда
+  async function handleNatalChart() {
+    setScreen('natal_chart');
+    setNatalChart(null);
+    setNatalReading(null);
+    setLoading(true);
+    setError(null);
+    try {
+      const natalRes = await getNatalChart(tgUser.id);
+      setNatalChart(natalRes.data.natal_chart);
+      setNatalReading(natalRes.data.reading);
+    } catch (err) {
+      console.error('Ошибка расчёта натальной карты:', err);
+    }
+    setLoading(false);
+  }
+
   // Получить прогноз
   async function handleHoroscope() {
     setScreen('horoscope');
@@ -178,6 +195,7 @@ function App() {
           limits={limits}
           onHoroscope={handleHoroscope}
           onTarot={handleTarot}
+          onNatalChart={handleNatalChart}
         />
       )}
 
