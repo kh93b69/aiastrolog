@@ -12,13 +12,16 @@ export default function HoroscopeScreen({ horoscope, loading, onBack }) {
 
         <div className="text-center mb-6">
           <div className="text-5xl mb-3">⭐</div>
-          <h2 className="text-2xl font-bold">Ваш прогноз на день</h2>
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-300 to-yellow-200 bg-clip-text text-transparent">
+            Звёздный чек-ап
+          </h2>
+          <p className="text-slate-400 text-sm mt-1">Твой прогноз на сегодня</p>
         </div>
 
         {loading ? (
           <div className="text-center py-12">
             <div className="loading-spinner" />
-            <p className="text-slate-400 mt-4">Читаю звёзды...</p>
+            <p className="text-slate-400 mt-4">Сверяю транзиты с твоей картой...</p>
           </div>
         ) : horoscope ? (
           <div className="mystic-card">

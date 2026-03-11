@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import WelcomeScreen from './components/WelcomeScreen';
 import OnboardingScreen from './components/OnboardingScreen';
+import NatalChartScreen from './components/NatalChartScreen';
 import Dashboard from './components/Dashboard';
 import HoroscopeScreen from './components/HoroscopeScreen';
 import TarotScreen from './components/TarotScreen';
-import { registerUser, updateProfile, getUser, getHoroscope, getTarotReading } from './api';
+import { registerUser, updateProfile, getUser, getNatalChart, getHoroscope, getTarotReading } from './api';
 
 // Получаем telegram_id из Telegram WebApp или используем тестовый
 function getTelegramUser() {
@@ -17,7 +18,7 @@ function getTelegramUser() {
 }
 
 function App() {
-  // Экраны: welcome, onboarding, dashboard, horoscope, tarot
+  // Экраны: welcome, onboarding, natal_chart, dashboard, horoscope, tarot
   const [screen, setScreen] = useState('welcome');
   const [user, setUser] = useState(null);
   const [limits, setLimits] = useState(null);
@@ -28,6 +29,8 @@ function App() {
   const [horoscope, setHoroscope] = useState(null);
   const [tarotCards, setTarotCards] = useState(null);
   const [tarotReading, setTarotReading] = useState(null);
+  const [natalChart, setNatalChart] = useState(null);
+  const [natalReading, setNatalReading] = useState(null);
 
   const tgUser = getTelegramUser();
 
@@ -59,16 +62,22 @@ function App() {
     setLoading(false);
   }
 
-  // Сохранение профиля
+  // Сохранение профиля — после онбординга показываем натальную карту
   async function handleOnboarding(birthDate, birthTime, birthPlace) {
     setLoading(true);
     setError(null);
     try {
       const res = await updateProfile(tgUser.id, birthDate, birthTime, birthPlace);
       setUser(res.data.user);
-      setScreen('dashboard');
+
+      // Рассчитываем натальную карту
+      setScreen('natal_chart');
+      const natalRes = await getNatalChart(tgUser.id);
+      setNatalChart(natalRes.data.natal_chart);
+      setNatalReading(natalRes.data.reading);
     } catch (err) {
-      setError('Ошибка сохранения профиля');
+      setError('Ошибка расчёта натальной карты');
+      setScreen('dashboard');
     }
     setLoading(false);
   }
@@ -94,18 +103,19 @@ function App() {
     setLoading(false);
   }
 
-  // Получить расклад Таро
+  // Открыть экран Таро
   async function handleTarot() {
     setScreen('tarot');
     setTarotCards(null);
     setTarotReading(null);
   }
 
-  async function handleTarotSubmit(question) {
+  // Отправить вопрос Таро с типом расклада
+  async function handleTarotSubmit(question, spreadType, category) {
     setLoading(true);
     setError(null);
     try {
-      const res = await getTarotReading(tgUser.id, question);
+      const res = await getTarotReading(tgUser.id, question, spreadType, category);
       setTarotCards(res.data.cards);
       setTarotReading(res.data.reading);
       setLimits(res.data.limits);
@@ -128,17 +138,6 @@ function App() {
     setTarotReading(null);
   }
 
-  // Обновить данные пользователя
-  async function refreshUser() {
-    try {
-      const res = await getUser(tgUser.id);
-      setUser(res.data.user);
-      setLimits(res.data.limits);
-    } catch (err) {
-      // молча игнорируем
-    }
-  }
-
   return (
     <div>
       {/* Ошибка */}
@@ -155,6 +154,15 @@ function App() {
 
       {screen === 'onboarding' && (
         <OnboardingScreen onComplete={handleOnboarding} loading={loading} />
+      )}
+
+      {screen === 'natal_chart' && (
+        <NatalChartScreen
+          natalChart={natalChart}
+          reading={natalReading}
+          loading={loading}
+          onContinue={() => setScreen('dashboard')}
+        />
       )}
 
       {screen === 'dashboard' && (

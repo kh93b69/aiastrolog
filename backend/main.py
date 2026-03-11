@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from typing import Optional
 import database as db
 import ai_service
+import astro_service
 
 app = FastAPI(title="AI Astrolog API")
 
@@ -39,9 +40,15 @@ class ProfileUpdate(BaseModel):
 class TarotRequest(BaseModel):
     telegram_id: int
     question: str
+    spread_type: str = "past_present_future"  # или "category"
+    category: Optional[str] = None  # "relationships", "work_money", "self_discovery"
 
 
 class HoroscopeRequest(BaseModel):
+    telegram_id: int
+
+
+class NatalChartRequest(BaseModel):
     telegram_id: int
 
 
@@ -50,14 +57,6 @@ class HoroscopeRequest(BaseModel):
 @app.get("/health")
 def health():
     return {"status": "ok", "app": "AI Astrolog"}
-
-
-@app.get("/debug")
-def debug():
-    """Временный дебаг — проверяем пути к фронтенду"""
-    exists = os.path.exists(STATIC_DIR)
-    files = os.listdir(STATIC_DIR) if exists else []
-    return {"static_dir": STATIC_DIR, "exists": exists, "files": files}
 
 
 @app.post("/api/user/register")
@@ -94,9 +93,33 @@ def get_user(telegram_id: int):
     return {"user": user, "limits": limits}
 
 
+@app.post("/api/natal-chart")
+def get_natal_chart(data: NatalChartRequest):
+    """Рассчитать натальную карту и получить интерпретацию"""
+    user = db.get_user(data.telegram_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    if not user.get("onboarding_done"):
+        raise HTTPException(status_code=400, detail="Заполните профиль")
+
+    # Рассчитываем натальную карту
+    natal_data = astro_service.calculate_natal_chart(
+        user["birth_date"], user["birth_time"], user["birth_place"]
+    )
+
+    # Генерируем описание от ИИ
+    reading = ai_service.generate_natal_chart_reading(natal_data)
+
+    return {
+        "natal_chart": natal_data,
+        "reading": reading,
+    }
+
+
 @app.post("/api/horoscope")
 def get_horoscope(data: HoroscopeRequest):
-    """Получить астрологический прогноз"""
+    """Получить астрологический прогноз на основе натальной карты и транзитов"""
     user = db.get_user(data.telegram_id)
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
@@ -112,7 +135,7 @@ def get_horoscope(data: HoroscopeRequest):
     if not limits["is_premium"] and limits["horoscope_used"] >= limits["horoscope_limit"]:
         raise HTTPException(status_code=429, detail="Лимит прогнозов исчерпан на этой неделе")
 
-    # Генерация прогноза
+    # Генерация прогноза с реальными транзитами
     horoscope = ai_service.generate_horoscope(
         user["birth_date"], user["birth_time"], user["birth_place"]
     )
@@ -121,14 +144,14 @@ def get_horoscope(data: HoroscopeRequest):
     new_limits = db.increment_usage(data.telegram_id, "horoscope")
 
     # Сохраняем в историю
-    db.save_reading(data.telegram_id, "horoscope", "Прогноз на день", horoscope)
+    db.save_reading(data.telegram_id, "horoscope", "Звёздный чек-ап", horoscope)
 
     return {"horoscope": horoscope, "limits": new_limits}
 
 
 @app.post("/api/tarot")
 def get_tarot_reading(data: TarotRequest):
-    """Получить расклад Таро"""
+    """Получить расклад Астро-Таро"""
     user = db.get_user(data.telegram_id)
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
@@ -144,7 +167,13 @@ def get_tarot_reading(data: TarotRequest):
     # Вытягиваем карты и генерируем интерпретацию
     cards = ai_service.draw_tarot_cards(3)
     reading = ai_service.generate_tarot_reading(
-        cards, data.question, user.get("birth_date")
+        cards=cards,
+        question=data.question,
+        birth_date=user.get("birth_date"),
+        birth_time=user.get("birth_time"),
+        birth_place=user.get("birth_place"),
+        spread_type=data.spread_type,
+        category=data.category,
     )
 
     # Обновляем счётчик

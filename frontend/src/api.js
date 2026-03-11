@@ -29,6 +29,13 @@ export function getUser(telegramId) {
   return api.get(`/api/user/${telegramId}`);
 }
 
+// Получить натальную карту
+export function getNatalChart(telegramId) {
+  return api.post('/api/natal-chart', {
+    telegram_id: telegramId,
+  });
+}
+
 // Получить прогноз
 export function getHoroscope(telegramId) {
   return api.post('/api/horoscope', {
@@ -37,9 +44,11 @@ export function getHoroscope(telegramId) {
 }
 
 // Получить расклад Таро
-export function getTarotReading(telegramId, question) {
+export function getTarotReading(telegramId, question, spreadType = 'past_present_future', category = null) {
   return api.post('/api/tarot', {
     telegram_id: telegramId,
     question: question,
+    spread_type: spreadType,
+    category: category,
   });
 }
