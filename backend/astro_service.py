@@ -51,6 +51,14 @@ PLANET_EMOJI = {
     "Уран": "⛢", "Нептун": "♆", "Плутон": "♇",
 }
 
+# Номер дома из строки вида "First_House" -> 1
+HOUSE_NUMBERS = {
+    "First_House": 1, "Second_House": 2, "Third_House": 3,
+    "Fourth_House": 4, "Fifth_House": 5, "Sixth_House": 6,
+    "Seventh_House": 7, "Eighth_House": 8, "Ninth_House": 9,
+    "Tenth_House": 10, "Eleventh_House": 11, "Twelfth_House": 12,
+}
+
 
 def get_sign_ru(sign_abbr):
     """Перевести аббревиатуру знака в русское название"""
@@ -62,11 +70,15 @@ def get_planet_ru(planet_name):
     return PLANET_NAMES_RU.get(planet_name, planet_name)
 
 
+def get_house_number(house_str):
+    """Получить номер дома из строки"""
+    return HOUSE_NUMBERS.get(house_str, "")
+
+
 def calculate_natal_chart(birth_date, birth_time, birth_place):
     """
     Рассчитать натальную карту по данным рождения.
-
-    Возвращает словарь с позициями планет, домов, аспектами и т.д.
+    Возвращает словарь с позициями планет.
     """
     # Парсим дату и время
     date_parts = birth_date.split("-")
@@ -86,36 +98,39 @@ def calculate_natal_chart(birth_date, birth_time, birth_place):
         city=birth_place,
     )
 
-    # Собираем позиции планет
-    planets = []
-    planet_keys = [
+    # Список планет для извлечения
+    planet_attrs = [
         "sun", "moon", "mercury", "venus", "mars",
         "jupiter", "saturn", "uranus", "neptune", "pluto"
     ]
 
-    for key in planet_keys:
-        planet = getattr(subject, key, None)
-        if planet:
-            sign_ru = get_sign_ru(planet["sign"])
-            name_ru = get_planet_ru(planet["name"])
-            planets.append({
-                "name": name_ru,
-                "sign": sign_ru,
-                "degree": round(planet["position"], 1),
-                "house": planet.get("house", ""),
-                "emoji": PLANET_EMOJI.get(name_ru, ""),
-                "sign_emoji": SIGN_EMOJI.get(sign_ru, ""),
-            })
+    # Собираем позиции планет
+    planets = []
+    for attr_name in planet_attrs:
+        planet = getattr(subject, attr_name, None)
+        if planet is None:
+            continue
+
+        sign_ru = get_sign_ru(planet.sign)
+        name_ru = get_planet_ru(planet.name)
+        house_num = get_house_number(getattr(planet, "house", ""))
+
+        planets.append({
+            "name": name_ru,
+            "sign": sign_ru,
+            "degree": round(planet.position, 1),
+            "house": house_num,
+            "emoji": PLANET_EMOJI.get(name_ru, ""),
+            "sign_emoji": SIGN_EMOJI.get(sign_ru, ""),
+            "retrograde": getattr(planet, "retrograde", False),
+        })
 
     # Асцендент (первый дом)
-    first_house = subject.first_house
-    ascendant_sign = get_sign_ru(first_house["sign"])
+    ascendant_sign = get_sign_ru(subject.first_house.sign)
 
-    # Знак Солнца
-    sun_sign = get_sign_ru(subject.sun["sign"])
-
-    # Знак Луны
-    moon_sign = get_sign_ru(subject.moon["sign"])
+    # Знак Солнца и Луны
+    sun_sign = get_sign_ru(subject.sun.sign)
+    moon_sign = get_sign_ru(subject.moon.sign)
 
     return {
         "sun_sign": sun_sign,
@@ -141,22 +156,25 @@ def get_current_transits():
         city="Greenwich",
     )
 
-    transits = []
-    planet_keys = [
+    planet_attrs = [
         "sun", "moon", "mercury", "venus", "mars",
         "jupiter", "saturn", "uranus", "neptune", "pluto"
     ]
 
-    for key in planet_keys:
-        planet = getattr(transit_subject, key, None)
-        if planet:
-            sign_ru = get_sign_ru(planet["sign"])
-            name_ru = get_planet_ru(planet["name"])
-            transits.append({
-                "name": name_ru,
-                "sign": sign_ru,
-                "degree": round(planet["position"], 1),
-            })
+    transits = []
+    for attr_name in planet_attrs:
+        planet = getattr(transit_subject, attr_name, None)
+        if planet is None:
+            continue
+
+        sign_ru = get_sign_ru(planet.sign)
+        name_ru = get_planet_ru(planet.name)
+        transits.append({
+            "name": name_ru,
+            "sign": sign_ru,
+            "degree": round(planet.position, 1),
+            "retrograde": getattr(planet, "retrograde", False),
+        })
 
     return transits
 
@@ -173,7 +191,8 @@ def format_natal_for_prompt(natal_data):
     lines.append("Позиции планет в натале:")
     for p in natal_data["planets"]:
         house_info = f", {p['house']}-й дом" if p["house"] else ""
-        lines.append(f"  {p['name']} в {p['sign']} ({p['degree']}°{house_info})")
+        retro = " (ретро)" if p.get("retrograde") else ""
+        lines.append(f"  {p['name']} в {p['sign']} ({p['degree']}°{house_info}){retro}")
     return "\n".join(lines)
 
 
@@ -183,5 +202,6 @@ def format_transits_for_prompt(transits):
     """
     lines = ["Текущие транзиты планет:"]
     for t in transits:
-        lines.append(f"  {t['name']} в {t['sign']} ({t['degree']}°)")
+        retro = " (ретро)" if t.get("retrograde") else ""
+        lines.append(f"  {t['name']} в {t['sign']} ({t['degree']}°){retro}")
     return "\n".join(lines)
