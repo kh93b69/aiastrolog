@@ -1,4 +1,5 @@
 import os
+import traceback
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -59,6 +60,16 @@ def health():
     return {"status": "ok", "app": "AI Astrolog"}
 
 
+@app.get("/debug/astro")
+def debug_astro():
+    """Проверка работы kerykeion"""
+    try:
+        test_data = astro_service.calculate_natal_chart("2000-01-01", "12:00", "Moscow")
+        return {"status": "ok", "sun_sign": test_data["sun_sign"]}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "type": type(e).__name__}
+
+
 @app.post("/api/user/register")
 def register_user(data: UserCreate):
     """Регистрация пользователя (или возврат существующего)"""
@@ -103,13 +114,23 @@ def get_natal_chart(data: NatalChartRequest):
     if not user.get("onboarding_done"):
         raise HTTPException(status_code=400, detail="Заполните профиль")
 
-    # Рассчитываем натальную карту
-    natal_data = astro_service.calculate_natal_chart(
-        user["birth_date"], user["birth_time"], user["birth_place"]
-    )
+    try:
+        # Рассчитываем натальную карту
+        natal_data = astro_service.calculate_natal_chart(
+            user["birth_date"], user["birth_time"], user["birth_place"]
+        )
+    except Exception as e:
+        print(f"Ошибка расчёта натальной карты: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Ошибка расчёта карты: {str(e)}")
 
-    # Генерируем описание от ИИ
-    reading = ai_service.generate_natal_chart_reading(natal_data)
+    try:
+        # Генерируем описание от ИИ
+        reading = ai_service.generate_natal_chart_reading(natal_data)
+    except Exception as e:
+        print(f"Ошибка генерации описания: {e}")
+        # Если ИИ не работает — отдаём карту без описания
+        reading = None
 
     return {
         "natal_chart": natal_data,
@@ -136,9 +157,14 @@ def get_horoscope(data: HoroscopeRequest):
         raise HTTPException(status_code=429, detail="Лимит прогнозов исчерпан на этой неделе")
 
     # Генерация прогноза с реальными транзитами
-    horoscope = ai_service.generate_horoscope(
-        user["birth_date"], user["birth_time"], user["birth_place"]
-    )
+    try:
+        horoscope = ai_service.generate_horoscope(
+            user["birth_date"], user["birth_time"], user["birth_place"]
+        )
+    except Exception as e:
+        print(f"Ошибка генерации прогноза: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Ошибка генерации прогноза: {str(e)}")
 
     # Обновляем счётчик
     new_limits = db.increment_usage(data.telegram_id, "horoscope")
