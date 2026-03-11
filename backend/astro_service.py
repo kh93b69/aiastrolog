@@ -6,12 +6,16 @@
 import requests
 from datetime import datetime
 from kerykeion import AstrologicalSubject
+from timezonefinder import TimezoneFinder
+
+# Глобальный экземпляр для определения часового пояса
+tf = TimezoneFinder()
 
 
 def geocode_city(city_name):
     """
     Получить координаты города через OpenStreetMap Nominatim.
-    Возвращает (широта, долгота, timezone) или None.
+    Возвращает (широта, долгота, timezone_str) или None.
     """
     url = "https://nominatim.openstreetmap.org/search"
     params = {
@@ -24,7 +28,10 @@ def geocode_city(city_name):
     resp = requests.get(url, params=params, headers=headers, timeout=10)
     data = resp.json()
     if data:
-        return float(data[0]["lat"]), float(data[0]["lon"])
+        lat = float(data[0]["lat"])
+        lon = float(data[0]["lon"])
+        tz_str = tf.timezone_at(lat=lat, lng=lon) or "UTC"
+        return lat, lon, tz_str
     return None
 
 
@@ -111,20 +118,21 @@ def calculate_natal_chart(birth_date, birth_time, birth_place):
     hour = int(time_parts[0])
     minute = int(time_parts[1]) if len(time_parts) > 1 else 0
 
-    # Получаем координаты города
+    # Получаем координаты и часовой пояс города
     coords = geocode_city(birth_place)
     if not coords:
         raise ValueError(f"Город не найден: {birth_place}")
 
-    lat, lng = coords
+    lat, lng, tz_str = coords
 
-    # Создаём астрологический субъект с координатами
+    # Создаём астрологический субъект с координатами и таймзоной
     subject = AstrologicalSubject(
         "User",
         year, month, day,
         hour, minute,
         lng=lng,
         lat=lat,
+        tz_str=tz_str,
         city=birth_place,
     )
 
@@ -179,13 +187,14 @@ def get_current_transits():
     """
     now = datetime.now()
 
-    # Гринвич — фиксированные координаты
+    # Гринвич — фиксированные координаты и таймзона
     transit_subject = AstrologicalSubject(
         "Transit",
         now.year, now.month, now.day,
         now.hour, now.minute,
         lng=0.0,
         lat=51.4769,
+        tz_str="Europe/London",
         city="Greenwich",
     )
 
