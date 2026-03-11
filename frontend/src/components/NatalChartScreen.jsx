@@ -66,7 +66,14 @@ export default function NatalChartScreen({ natalChart, reading, loading, onConti
               Перейти к прогнозам →
             </button>
           </div>
-        ) : null}
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-slate-400 mb-6">Не удалось загрузить карту. Попробуй позже.</p>
+            <button onClick={onContinue} className="mystic-btn">
+              Перейти к прогнозам →
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

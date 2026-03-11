@@ -69,15 +69,23 @@ function App() {
     try {
       const res = await updateProfile(tgUser.id, birthDate, birthTime, birthPlace);
       setUser(res.data.user);
-
-      // Рассчитываем натальную карту
       setScreen('natal_chart');
+    } catch (err) {
+      setError('Ошибка сохранения профиля');
+      setScreen('dashboard');
+      setLoading(false);
+      return;
+    }
+
+    // Рассчитываем натальную карту отдельно
+    try {
       const natalRes = await getNatalChart(tgUser.id);
       setNatalChart(natalRes.data.natal_chart);
       setNatalReading(natalRes.data.reading);
     } catch (err) {
-      setError('Ошибка расчёта натальной карты');
-      setScreen('dashboard');
+      console.error('Ошибка расчёта натальной карты:', err);
+      // Даже если упало — остаёмся на экране натальной карты
+      // просто без данных, пользователь нажмёт "Продолжить"
     }
     setLoading(false);
   }
