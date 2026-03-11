@@ -57,7 +57,7 @@ class NatalChartRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "app": "AI Astrolog"}
+    return {"status": "ok", "app": "AI Astrolog", "version": "3"}
 
 
 @app.get("/debug/astro")

@@ -3,6 +3,7 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm install
 COPY frontend/ ./
+# Маркер версии для сброса Docker-кеша: v3
 RUN npm run build
 
 FROM python:3.11-slim
