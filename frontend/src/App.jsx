@@ -6,7 +6,8 @@ import Dashboard from './components/Dashboard';
 import HoroscopeScreen from './components/HoroscopeScreen';
 import TarotScreen from './components/TarotScreen';
 import ReadingScreen from './components/ReadingScreen';
-import { registerUser, updateProfile, getUser, getNatalChart, getHoroscope, getTarotReading, processReferral } from './api';
+import PacksModal from './components/PacksModal';
+import { registerUser, updateProfile, getUser, getNatalChart, getHoroscope, getTarotReading, processReferral, createInvoice } from './api';
 
 // Получаем telegram_id из Telegram WebApp или используем тестовый
 function getTelegramUser() {
@@ -38,6 +39,8 @@ function App() {
   const [natalChart, setNatalChart] = useState(null);
   const [natalReading, setNatalReading] = useState(null);
   const [viewedReading, setViewedReading] = useState(null);
+  const [showPacks, setShowPacks] = useState(false);
+  const [buying, setBuying] = useState(false);
 
   const tgUser = getTelegramUser();
 
@@ -205,6 +208,39 @@ function App() {
     }
   }
 
+  // Покупка пакета через Telegram Stars
+  async function handleBuyPack(packType) {
+    setBuying(true);
+    try {
+      const res = await createInvoice(tgUser.id, packType);
+      const invoiceLink = res.data.invoice_link;
+
+      if (window.Telegram?.WebApp?.openInvoice) {
+        // Открываем инвойс прямо в Mini App
+        window.Telegram.WebApp.openInvoice(invoiceLink, async (status) => {
+          if (status === 'paid') {
+            // Обновляем лимиты после успешной оплаты
+            try {
+              const userRes = await getUser(tgUser.id);
+              setLimits(userRes.data.limits);
+            } catch (e) {
+              // Лимиты обновятся при следующем запросе
+            }
+            setShowPacks(false);
+          }
+          setBuying(false);
+        });
+      } else {
+        // Фоллбэк — открыть ссылку
+        window.open(invoiceLink, '_blank');
+        setBuying(false);
+      }
+    } catch (err) {
+      setError('Не удалось создать платёж');
+      setBuying(false);
+    }
+  }
+
   // Назад к дашборду
   function goBack() {
     setScreen('dashboard');
@@ -251,6 +287,7 @@ function App() {
           onNatalChart={handleNatalChart}
           onViewReading={handleViewReading}
           onInvite={handleInvite}
+          onOpenPacks={() => setShowPacks(true)}
         />
       )}
 
@@ -276,6 +313,15 @@ function App() {
         <ReadingScreen
           reading={viewedReading}
           onBack={goBack}
+        />
+      )}
+
+      {/* Модальное окно с пакетами */}
+      {showPacks && (
+        <PacksModal
+          onClose={() => setShowPacks(false)}
+          onBuy={handleBuyPack}
+          buying={buying}
         />
       )}
     </div>

@@ -58,6 +58,19 @@ export function getReadings(telegramId) {
   return api.get(`/api/readings/${telegramId}`);
 }
 
+// Получить список пакетов
+export function getPacks() {
+  return api.get('/api/packs');
+}
+
+// Создать инвойс для оплаты
+export function createInvoice(telegramId, packType) {
+  return api.post('/api/payment/create-invoice', {
+    telegram_id: telegramId,
+    pack_type: packType,
+  });
+}
+
 // Отправить реферал
 export function processReferral(telegramId, referrerId) {
   return api.post('/api/referral', {

@@ -1,5 +1,6 @@
 import os
 import secrets
+import asyncio
 import traceback
 from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -60,6 +61,11 @@ class NatalChartRequest(BaseModel):
 class ReferralRequest(BaseModel):
     telegram_id: int  # кто пришёл по ссылке
     referrer_id: int   # кто пригласил
+
+
+class InvoiceRequest(BaseModel):
+    telegram_id: int
+    pack_type: str  # 'impulse', 'vibe_week', 'vip_month'
 
 
 # === Эндпоинты ===
@@ -256,6 +262,38 @@ def process_referral(data: ReferralRequest):
     db.set_referrer(data.telegram_id, data.referrer_id)
     new_limits = db.add_referral_bonus(data.referrer_id)
     return {"status": "ok", "limits": new_limits}
+
+
+@app.get("/api/packs")
+def get_packs():
+    """Список доступных пакетов для покупки"""
+    packs = []
+    for key, pack in db.PACKS.items():
+        packs.append({
+            "id": key,
+            "title": pack["title"],
+            "description": pack["description"],
+            "stars": pack["stars"],
+        })
+    return {"packs": packs}
+
+
+@app.post("/api/payment/create-invoice")
+async def create_invoice(data: InvoiceRequest):
+    """Создать ссылку на инвойс для оплаты через Telegram Stars"""
+    if data.pack_type not in db.PACKS:
+        raise HTTPException(status_code=400, detail="Неизвестный пакет")
+
+    user = db.get_user(data.telegram_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    from bot import create_invoice_link
+    link = await create_invoice_link(data.pack_type, data.telegram_id)
+    if not link:
+        raise HTTPException(status_code=500, detail="Не удалось создать инвойс")
+
+    return {"invoice_link": link}
 
 
 @app.post("/api/limits/reset")

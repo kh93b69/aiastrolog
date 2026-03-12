@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { getReadings } from '../api';
 
-export default function Dashboard({ limits, telegramId, onHoroscope, onTarot, onNatalChart, onViewReading, onInvite }) {
+export default function Dashboard({ limits, telegramId, onHoroscope, onTarot, onNatalChart, onViewReading, onInvite, onOpenPacks }) {
   const horoscopeLeft = limits ? limits.horoscope_limit - limits.horoscope_used : 0;
   const tarotLeft = limits ? limits.tarot_limit - limits.tarot_used : 0;
+  const isPremium = limits?.is_premium;
   const [readings, setReadings] = useState([]);
 
   // Загружаем историю раскладов
@@ -23,6 +24,9 @@ export default function Dashboard({ limits, telegramId, onHoroscope, onTarot, on
     return `${day} ${months[date.getMonth()]}`;
   }
 
+  // Мало ли осталось (для показа плашки энергии)
+  const energyLow = !isPremium && (horoscopeLeft <= 0 || tarotLeft <= 0);
+
   return (
     <div className="min-h-screen px-6 py-8">
       <div className="max-w-sm mx-auto animate-fade-in">
@@ -32,26 +36,57 @@ export default function Dashboard({ limits, telegramId, onHoroscope, onTarot, on
           <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-violet-300 bg-clip-text text-transparent">
             Новелла
           </h1>
+          {isPremium && (
+            <span className="inline-block mt-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white">
+              👑 VIP
+            </span>
+          )}
         </div>
+
+        {/* Плашка «Энергия на исходе» */}
+        {energyLow && (
+          <div
+            className="mb-6 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform
+              bg-gradient-to-r from-purple-900/40 to-violet-900/40 border border-purple-500/30"
+            onClick={onOpenPacks}
+          >
+            <div className="flex items-center gap-3">
+              <div className="text-2xl animate-pulse">🌙</div>
+              <div className="flex-1">
+                <div className="text-sm font-semibold text-purple-300">
+                  Твоя энергия на исходе
+                </div>
+                <div className="text-xs text-slate-500 mt-0.5">
+                  Пополни запасы, чтобы продолжить общение с Новеллой
+                </div>
+              </div>
+              <div className="text-purple-400 text-sm">→</div>
+            </div>
+          </div>
+        )}
 
         {/* Счётчик лимитов */}
         <div className="mystic-card mb-6">
-          <p className="text-sm text-slate-400 mb-3">Осталось на этой неделе:</p>
-          <div className="flex justify-between">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-400">
-                {horoscopeLeft}/{limits?.horoscope_limit || 2}
+          <p className="text-sm text-slate-400 mb-3">
+            {isPremium ? 'Безлимитный доступ активен ✨' : 'Осталось на этой неделе:'}
+          </p>
+          {!isPremium && (
+            <div className="flex justify-between">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-400">
+                  {horoscopeLeft}/{limits?.horoscope_limit || 2}
+                </div>
+                <div className="text-xs text-slate-500">Прогнозов</div>
               </div>
-              <div className="text-xs text-slate-500">Прогнозов</div>
-            </div>
-            <div className="w-px bg-purple-500/20" />
-            <div className="text-center">
-              <div className="text-2xl font-bold text-amber-400">
-                {tarotLeft}/{limits?.tarot_limit || 3}
+              <div className="w-px bg-purple-500/20" />
+              <div className="text-center">
+                <div className="text-2xl font-bold text-amber-400">
+                  {tarotLeft}/{limits?.tarot_limit || 3}
+                </div>
+                <div className="text-xs text-slate-500">Раскладов</div>
               </div>
-              <div className="text-xs text-slate-500">Раскладов</div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Натальная карта */}
@@ -73,8 +108,8 @@ export default function Dashboard({ limits, telegramId, onHoroscope, onTarot, on
         {/* Карточка прогноза */}
         <div
           className="mystic-card mb-4 cursor-pointer active:scale-[0.98] transition-transform"
-          onClick={horoscopeLeft > 0 ? onHoroscope : undefined}
-          style={{ opacity: horoscopeLeft > 0 ? 1 : 0.5 }}
+          onClick={(isPremium || horoscopeLeft > 0) ? onHoroscope : onOpenPacks}
+          style={{ opacity: (isPremium || horoscopeLeft > 0) ? 1 : 0.5 }}
         >
           <div className="flex items-center gap-4">
             <div className="text-4xl">⭐</div>
@@ -85,21 +120,18 @@ export default function Dashboard({ limits, telegramId, onHoroscope, onTarot, on
               </p>
             </div>
           </div>
-          {horoscopeLeft <= 0 && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onInvite && onInvite(); }}
-              className="mt-3 w-full py-2 rounded-lg bg-purple-500/20 text-purple-400 text-sm font-medium"
-            >
-              🎁 Пригласи подругу = +1 прогноз
-            </button>
+          {!isPremium && horoscopeLeft <= 0 && (
+            <div className="mt-3 w-full py-2 rounded-lg bg-purple-500/20 text-purple-400 text-sm font-medium text-center">
+              Стать ближе к звездам ⭐
+            </div>
           )}
         </div>
 
         {/* Карточка Таро */}
         <div
           className="mystic-card mb-4 cursor-pointer active:scale-[0.98] transition-transform"
-          onClick={tarotLeft > 0 ? onTarot : undefined}
-          style={{ opacity: tarotLeft > 0 ? 1 : 0.5 }}
+          onClick={(isPremium || tarotLeft > 0) ? onTarot : onOpenPacks}
+          style={{ opacity: (isPremium || tarotLeft > 0) ? 1 : 0.5 }}
         >
           <div className="flex items-center gap-4">
             <div className="text-4xl">🃏</div>
@@ -110,19 +142,16 @@ export default function Dashboard({ limits, telegramId, onHoroscope, onTarot, on
               </p>
             </div>
           </div>
-          {tarotLeft <= 0 && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onInvite && onInvite(); }}
-              className="mt-3 w-full py-2 rounded-lg bg-purple-500/20 text-purple-400 text-sm font-medium"
-            >
-              🎁 Пригласи подругу = +1 расклад
-            </button>
+          {!isPremium && tarotLeft <= 0 && (
+            <div className="mt-3 w-full py-2 rounded-lg bg-purple-500/20 text-purple-400 text-sm font-medium text-center">
+              Открыть портал инсайтов ⭐
+            </div>
           )}
         </div>
 
         {/* Кнопка пригласить */}
         <div
-          className="mystic-card mb-6 cursor-pointer active:scale-[0.98] transition-transform"
+          className="mystic-card mb-4 cursor-pointer active:scale-[0.98] transition-transform"
           onClick={onInvite}
         >
           <div className="flex items-center gap-4">
@@ -133,6 +162,26 @@ export default function Dashboard({ limits, telegramId, onHoroscope, onTarot, on
                 Получи +1 прогноз за каждого друга
               </p>
             </div>
+          </div>
+        </div>
+
+        {/* Кнопка покупки */}
+        <div
+          className="mystic-card mb-6 cursor-pointer active:scale-[0.98] transition-transform
+            border-purple-500/40 bg-gradient-to-r from-[#1a1a2e] to-[#1e1538]"
+          onClick={onOpenPacks}
+        >
+          <div className="flex items-center gap-4">
+            <div className="text-4xl">⭐</div>
+            <div>
+              <h3 className="font-semibold text-lg bg-gradient-to-r from-purple-400 to-amber-300 bg-clip-text text-transparent">
+                Наполнить энергией
+              </h3>
+              <p className="text-sm text-slate-400">
+                Пакеты прогнозов и раскладов
+              </p>
+            </div>
+            <div className="text-slate-500 text-sm">→</div>
           </div>
         </div>
 

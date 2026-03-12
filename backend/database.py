@@ -1,7 +1,38 @@
+from datetime import datetime, timedelta, timezone
 from supabase import create_client
 from config import SUPABASE_URL, SUPABASE_KEY
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+
+# === Конфигурация пакетов ===
+
+PACKS = {
+    "impulse": {
+        "title": "Мистический импульс",
+        "description": "1 расклад Таро или 1 прогноз",
+        "stars": 25,
+        "horoscope_bonus": 1,
+        "tarot_bonus": 1,
+        "premium_days": 0,
+    },
+    "vibe_week": {
+        "title": "Вайб недели",
+        "description": "5 раскладов + безлимит прогнозов на 7 дней",
+        "stars": 99,
+        "horoscope_bonus": 99,  # фактически безлимит
+        "tarot_bonus": 5,
+        "premium_days": 7,
+    },
+    "vip_month": {
+        "title": "Подружка Новеллы",
+        "description": "Безлимит на всё на 30 дней",
+        "stars": 299,
+        "horoscope_bonus": 0,
+        "tarot_bonus": 0,
+        "premium_days": 30,
+    },
+}
 
 
 # === Пользователи ===
@@ -35,12 +66,55 @@ def update_user_profile(telegram_id: int, birth_date: str, birth_time: str, birt
 
 # === Лимиты ===
 
-def get_user_limits(telegram_id: int):
-    """Получить текущие лимиты пользователя"""
+def get_user_limits(telegram_id: int, auto_reset=True):
+    """Получить текущие лимиты пользователя (с автосбросом по неделям)"""
     result = supabase.table("user_limits").select("*").eq("telegram_id", telegram_id).execute()
-    if result.data:
-        return result.data[0]
-    return None
+    if not result.data:
+        return None
+
+    limits = result.data[0]
+
+    # Автосброс: если текущая неделя != week_start, обнуляем счётчики
+    if auto_reset and limits.get("week_start"):
+        now = datetime.now(timezone.utc)
+        # Начало текущей недели (понедельник 00:00 UTC)
+        current_week_start = now - timedelta(days=now.weekday(), hours=now.hour, minutes=now.minute, seconds=now.second)
+        current_week_start = current_week_start.replace(microsecond=0)
+
+        week_start = datetime.fromisoformat(limits["week_start"].replace("Z", "+00:00"))
+        if week_start < current_week_start:
+            # Новая неделя — сбрасываем счётчики, восстанавливаем базовые лимиты
+            update = {
+                "horoscope_used": 0,
+                "tarot_used": 0,
+                "horoscope_limit": 2,
+                "tarot_limit": 3,
+                "week_start": current_week_start.isoformat(),
+            }
+            # Проверяем, не истёк ли premium
+            if limits.get("premium_until"):
+                premium_until = datetime.fromisoformat(limits["premium_until"].replace("Z", "+00:00"))
+                if premium_until < now:
+                    update["is_premium"] = False
+                    update["premium_until"] = None
+
+            supabase.table("user_limits").update(update).eq("telegram_id", telegram_id).execute()
+            result = supabase.table("user_limits").select("*").eq("telegram_id", telegram_id).execute()
+            limits = result.data[0]
+
+    # Проверяем истечение premium (даже если неделя не сменилась)
+    if limits.get("is_premium") and limits.get("premium_until"):
+        now = datetime.now(timezone.utc)
+        premium_until = datetime.fromisoformat(limits["premium_until"].replace("Z", "+00:00"))
+        if premium_until < now:
+            supabase.table("user_limits").update({
+                "is_premium": False,
+                "premium_until": None,
+            }).eq("telegram_id", telegram_id).execute()
+            limits["is_premium"] = False
+            limits["premium_until"] = None
+
+    return limits
 
 
 def create_user_limits(telegram_id: int):
@@ -122,3 +196,64 @@ def add_referral_bonus(telegram_id: int):
 def set_referrer(telegram_id: int, referrer_id: int):
     """Записать кто пригласил пользователя"""
     supabase.table("users").update({"referrer_id": referrer_id}).eq("telegram_id", telegram_id).execute()
+
+
+# === Платежи ===
+
+def save_payment(telegram_id: int, pack_type: str, stars_amount: int, telegram_charge_id: str):
+    """Сохранить запись о платеже"""
+    data = {
+        "telegram_id": telegram_id,
+        "pack_type": pack_type,
+        "stars_amount": stars_amount,
+        "telegram_charge_id": telegram_charge_id,
+    }
+    result = supabase.table("payments").insert(data).execute()
+    return result.data[0]
+
+
+def apply_pack(telegram_id: int, pack_type: str):
+    """Применить купленный пакет к лимитам пользователя"""
+    pack = PACKS.get(pack_type)
+    if not pack:
+        return None
+
+    limits = get_user_limits(telegram_id, auto_reset=False)
+    if not limits:
+        limits = create_user_limits(telegram_id)
+
+    now = datetime.now(timezone.utc)
+    update = {}
+
+    if pack_type == "vip_month":
+        # VIP — полный безлимит на 30 дней
+        current_premium = None
+        if limits.get("premium_until"):
+            current_premium = datetime.fromisoformat(limits["premium_until"].replace("Z", "+00:00"))
+        # Если уже есть premium — продлеваем, иначе от текущего момента
+        start = max(now, current_premium) if current_premium and current_premium > now else now
+        update["is_premium"] = True
+        update["premium_until"] = (start + timedelta(days=30)).isoformat()
+
+    elif pack_type == "vibe_week":
+        # Вайб недели — +5 таро, безлимит прогнозов на 7 дней
+        update["tarot_limit"] = limits["tarot_limit"] + pack["tarot_bonus"]
+        current_premium = None
+        if limits.get("premium_until"):
+            current_premium = datetime.fromisoformat(limits["premium_until"].replace("Z", "+00:00"))
+        start = max(now, current_premium) if current_premium and current_premium > now else now
+        update["is_premium"] = True
+        update["premium_until"] = (start + timedelta(days=7)).isoformat()
+
+    elif pack_type == "impulse":
+        # Импульс — +1 к каждому лимиту
+        update["horoscope_limit"] = limits["horoscope_limit"] + pack["horoscope_bonus"]
+        update["tarot_limit"] = limits["tarot_limit"] + pack["tarot_bonus"]
+
+    result = (
+        supabase.table("user_limits")
+        .update(update)
+        .eq("telegram_id", telegram_id)
+        .execute()
+    )
+    return result.data[0]
