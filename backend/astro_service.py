@@ -221,29 +221,43 @@ def get_current_transits():
     return transits
 
 
+def _abs_degree(sign, degree):
+    """Рассчитать абсолютный градус в зодиаке (0-360)"""
+    sign_order = [
+        "Овен", "Телец", "Близнецы", "Рак", "Лев", "Дева",
+        "Весы", "Скорпион", "Стрелец", "Козерог", "Водолей", "Рыбы"
+    ]
+    sign_idx = sign_order.index(sign) if sign in sign_order else 0
+    return round(sign_idx * 30 + degree, 1)
+
+
 def format_natal_for_prompt(natal_data):
     """
     Форматировать натальную карту в текст для промпта ИИ.
+    Включает абсолютные градусы для точного расчёта аспектов.
     """
     lines = []
     lines.append(f"Солнце: {natal_data['sun_sign']}")
     lines.append(f"Луна: {natal_data['moon_sign']}")
     lines.append(f"Асцендент: {natal_data['ascendant']}")
     lines.append("")
-    lines.append("Позиции планет в натале:")
+    lines.append("Позиции планет в натале (градус в знаке / абсолютный градус в зодиаке 0-360°):")
     for p in natal_data["planets"]:
         house_info = f", {p['house']}-й дом" if p["house"] else ""
         retro = " (ретро)" if p.get("retrograde") else ""
-        lines.append(f"  {p['name']} в {p['sign']} ({p['degree']}°{house_info}){retro}")
+        abs_deg = _abs_degree(p["sign"], p["degree"])
+        lines.append(f"  {p['name']} в {p['sign']} {p['degree']}° [абс. {abs_deg}°{house_info}]{retro}")
     return "\n".join(lines)
 
 
 def format_transits_for_prompt(transits):
     """
     Форматировать текущие транзиты в текст для промпта ИИ.
+    Включает абсолютные градусы.
     """
-    lines = ["Текущие транзиты планет:"]
+    lines = ["Текущие транзиты планет (градус в знаке / абсолютный градус 0-360°):"]
     for t in transits:
         retro = " (ретро)" if t.get("retrograde") else ""
-        lines.append(f"  {t['name']} в {t['sign']} ({t['degree']}°){retro}")
+        abs_deg = _abs_degree(t["sign"], t["degree"])
+        lines.append(f"  {t['name']} в {t['sign']} {t['degree']}° [абс. {abs_deg}°]{retro}")
     return "\n".join(lines)
