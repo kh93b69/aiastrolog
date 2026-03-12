@@ -5,7 +5,8 @@ import NatalChartScreen from './components/NatalChartScreen';
 import Dashboard from './components/Dashboard';
 import HoroscopeScreen from './components/HoroscopeScreen';
 import TarotScreen from './components/TarotScreen';
-import { registerUser, updateProfile, getUser, getNatalChart, getHoroscope, getTarotReading } from './api';
+import ReadingScreen from './components/ReadingScreen';
+import { registerUser, updateProfile, getUser, getNatalChart, getHoroscope, getTarotReading, processReferral } from './api';
 
 // Получаем telegram_id из Telegram WebApp или используем тестовый
 function getTelegramUser() {
@@ -17,8 +18,13 @@ function getTelegramUser() {
   return { id: 123456789, username: 'test_user' };
 }
 
+// Получить start_param из Telegram (для реферальных ссылок)
+function getStartParam() {
+  return window.Telegram?.WebApp?.initDataUnsafe?.start_param || null;
+}
+
 function App() {
-  // Экраны: welcome, onboarding, natal_chart, dashboard, horoscope, tarot
+  // Экраны: welcome, onboarding, natal_chart, dashboard, horoscope, tarot, reading
   const [screen, setScreen] = useState('welcome');
   const [user, setUser] = useState(null);
   const [limits, setLimits] = useState(null);
@@ -31,6 +37,7 @@ function App() {
   const [tarotReading, setTarotReading] = useState(null);
   const [natalChart, setNatalChart] = useState(null);
   const [natalReading, setNatalReading] = useState(null);
+  const [viewedReading, setViewedReading] = useState(null);
 
   const tgUser = getTelegramUser();
 
@@ -42,7 +49,7 @@ function App() {
     }
   }, []);
 
-  // Начать путь — регистрация
+  // Начать путь — регистрация + обработка реферала
   async function handleStart() {
     setLoading(true);
     setError(null);
@@ -50,6 +57,16 @@ function App() {
       const res = await registerUser(tgUser.id, tgUser.username);
       setUser(res.data.user);
       setLimits(res.data.limits);
+
+      // Обработка реферальной ссылки (start_param = id пригласившего)
+      const startParam = getStartParam();
+      if (startParam && !res.data.user.onboarding_done) {
+        try {
+          await processReferral(parseInt(startParam));
+        } catch (e) {
+          // Реферал не критичен
+        }
+      }
 
       if (res.data.user.onboarding_done) {
         setScreen('dashboard');
@@ -84,8 +101,6 @@ function App() {
       setNatalReading(natalRes.data.reading);
     } catch (err) {
       console.error('Ошибка расчёта натальной карты:', err);
-      // Даже если упало — остаёмся на экране натальной карты
-      // просто без данных, пользователь нажмёт "Продолжить"
     }
     setLoading(false);
   }
@@ -155,12 +170,48 @@ function App() {
     setLoading(false);
   }
 
+  // Посмотреть запись из истории
+  function handleViewReading(reading) {
+    setViewedReading(reading);
+    setScreen('reading');
+  }
+
+  // Поделиться натальной картой
+  function handleShareNatal() {
+    if (!natalChart) return;
+    const text = `🔮 Моя натальная карта в Новелле:\n\n` +
+      `☀️ Солнце: ${natalChart.sun_sign}\n` +
+      `🌙 Луна: ${natalChart.moon_sign}\n` +
+      `⬆️ Асцендент: ${natalChart.ascendant}\n\n` +
+      `Узнай свою карту звёзд!`;
+
+    if (window.Telegram?.WebApp) {
+      // Отправить через Telegram
+      window.Telegram.WebApp.switchInlineQuery(text, ['users', 'groups', 'channels']);
+    }
+  }
+
+  // Пригласить друга — реферальная ссылка
+  function handleInvite() {
+    const botUsername = 'NovellaAstroBot'; // имя бота
+    const refLink = `https://t.me/${botUsername}?startapp=${tgUser.id}`;
+    const text = `🔮 Я пользуюсь Новеллой — персональный астролог прямо в Телеграме!\n\nУзнай свою натальную карту, получи прогноз на день и расклад Таро ✨\n\n`;
+
+    if (window.Telegram?.WebApp?.openTelegramLink) {
+      // Шарим через Telegram
+      window.Telegram.WebApp.openTelegramLink(
+        `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(text)}`
+      );
+    }
+  }
+
   // Назад к дашборду
   function goBack() {
     setScreen('dashboard');
     setHoroscope(null);
     setTarotCards(null);
     setTarotReading(null);
+    setViewedReading(null);
   }
 
   return (
@@ -187,15 +238,19 @@ function App() {
           reading={natalReading}
           loading={loading}
           onContinue={() => setScreen('dashboard')}
+          onShare={handleShareNatal}
         />
       )}
 
       {screen === 'dashboard' && (
         <Dashboard
           limits={limits}
+          telegramId={tgUser.id}
           onHoroscope={handleHoroscope}
           onTarot={handleTarot}
           onNatalChart={handleNatalChart}
+          onViewReading={handleViewReading}
+          onInvite={handleInvite}
         />
       )}
 
@@ -213,6 +268,13 @@ function App() {
           reading={tarotReading}
           cards={tarotCards}
           loading={loading}
+          onBack={goBack}
+        />
+      )}
+
+      {screen === 'reading' && (
+        <ReadingScreen
+          reading={viewedReading}
           onBack={goBack}
         />
       )}

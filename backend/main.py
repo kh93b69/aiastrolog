@@ -10,7 +10,7 @@ import database as db
 import ai_service
 import astro_service
 
-app = FastAPI(title="AI Astrolog API")
+app = FastAPI(title="Novella API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -57,7 +57,7 @@ class NatalChartRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "app": "AI Astrolog", "version": "3"}
+    return {"status": "ok", "app": "Novella", "version": "4"}
 
 
 @app.get("/debug/astro")
@@ -209,6 +209,29 @@ def get_tarot_reading(data: TarotRequest):
     db.save_reading(data.telegram_id, "tarot", data.question, reading, cards)
 
     return {"cards": cards, "reading": reading, "limits": new_limits}
+
+
+@app.get("/api/readings/{telegram_id}")
+def get_readings(telegram_id: int):
+    """Получить историю последних раскладов и прогнозов"""
+    readings = db.get_readings(telegram_id, limit=5)
+    return {"readings": readings}
+
+
+@app.post("/api/referral")
+def process_referral(data: UserCreate):
+    """Обработать реферальную ссылку — начислить бонус пригласившему"""
+    if not data.username:
+        raise HTTPException(status_code=400, detail="Не указан referrer_id")
+
+    referrer_id = int(data.username)  # передаём referrer_id через username
+    referrer = db.get_user(referrer_id)
+    if not referrer:
+        raise HTTPException(status_code=404, detail="Пригласивший не найден")
+
+    # Начисляем бонус пригласившему
+    new_limits = db.add_referral_bonus(referrer_id)
+    return {"status": "ok", "limits": new_limits}
 
 
 @app.post("/api/limits/reset")

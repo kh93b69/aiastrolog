@@ -13,16 +13,16 @@ async def start(message: types.Message):
     """Приветствие и кнопка открытия Mini App"""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
-            text="✨ Открыть AI Astrolog",
+            text="✨ Открыть Новеллу",
             web_app=WebAppInfo(url=WEBAPP_URL)
         )]
     ])
 
     await message.answer(
-        "🔮 *Добро пожаловать в AI Astrolog!*\n\n"
-        "Персональные астрологические прогнозы и расклады Таро, "
-        "созданные искусственным интеллектом специально для вас.\n\n"
-        "Нажмите кнопку ниже, чтобы начать свой путь:",
+        "🔮 *Добро пожаловать в Новеллу!*\n\n"
+        "Персональные астрологические прогнозы и расклады Таро "
+        "от твоего звёздного астролога ✨\n\n"
+        "Нажми кнопку ниже, чтобы начать свой путь:",
         reply_markup=keyboard,
         parse_mode="Markdown"
     )

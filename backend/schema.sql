@@ -7,6 +7,7 @@ CREATE TABLE users (
     birth_time TEXT,
     birth_place TEXT,
     onboarding_done BOOLEAN DEFAULT FALSE,
+    referrer_id BIGINT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

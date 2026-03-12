@@ -1,4 +1,4 @@
-export default function NatalChartScreen({ natalChart, reading, loading, onContinue }) {
+export default function NatalChartScreen({ natalChart, reading, loading, onContinue, onShare }) {
   return (
     <div className="min-h-screen px-6 py-8">
       <div className="max-w-sm mx-auto animate-fade-in">
@@ -52,13 +52,23 @@ export default function NatalChartScreen({ natalChart, reading, loading, onConti
               </div>
             </div>
 
-            {/* Интерпретация от ИИ */}
+            {/* Интерпретация натальной карты */}
             {reading && (
               <div className="mystic-card mb-6">
                 <div className="text-slate-200 whitespace-pre-wrap leading-relaxed">
                   {reading}
                 </div>
               </div>
+            )}
+
+            {/* Кнопка поделиться */}
+            {onShare && (
+              <button
+                onClick={onShare}
+                className="w-full mb-3 py-3 rounded-xl bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30 text-pink-300 font-medium transition-transform active:scale-[0.98]"
+              >
+                📤 Поделиться картой с подругой
+              </button>
             )}
 
             {/* Кнопка продолжить */}

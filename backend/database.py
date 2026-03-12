@@ -87,3 +87,38 @@ def save_reading(telegram_id: int, reading_type: str, question: str, response: s
     }
     result = supabase.table("readings").insert(data).execute()
     return result.data[0]
+
+
+def get_readings(telegram_id: int, limit: int = 5):
+    """Получить последние N записей из истории"""
+    result = (
+        supabase.table("readings")
+        .select("id, reading_type, question, response, cards, created_at")
+        .eq("telegram_id", telegram_id)
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return result.data
+
+
+# === Рефералы ===
+
+def add_referral_bonus(telegram_id: int):
+    """Добавить +1 прогноз за приглашённого друга"""
+    limits = get_user_limits(telegram_id)
+    if not limits:
+        limits = create_user_limits(telegram_id)
+    new_limit = limits["horoscope_limit"] + 1
+    result = (
+        supabase.table("user_limits")
+        .update({"horoscope_limit": new_limit})
+        .eq("telegram_id", telegram_id)
+        .execute()
+    )
+    return result.data[0]
+
+
+def set_referrer(telegram_id: int, referrer_id: int):
+    """Записать кто пригласил пользователя"""
+    supabase.table("users").update({"referrer_id": referrer_id}).eq("telegram_id", telegram_id).execute()

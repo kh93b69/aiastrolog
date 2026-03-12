@@ -52,3 +52,16 @@ export function getTarotReading(telegramId, question, spreadType = 'past_present
     category: category,
   });
 }
+
+// Получить историю раскладов
+export function getReadings(telegramId) {
+  return api.get(`/api/readings/${telegramId}`);
+}
+
+// Отправить реферал
+export function processReferral(referrerId) {
+  return api.post('/api/referral', {
+    telegram_id: 0,
+    username: String(referrerId),
+  });
+}

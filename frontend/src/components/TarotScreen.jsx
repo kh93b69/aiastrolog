@@ -1,13 +1,73 @@
 import { useState } from 'react';
+import { getCardData } from '../tarotCards';
+
+// Компонент одной карты Таро с анимацией переворота
+function TarotCard({ card, label, emoji, delay, flipped }) {
+  const data = getCardData(card);
+
+  return (
+    <div
+      className="tarot-card-container flex-1"
+      style={{ animationDelay: `${delay}s` }}
+    >
+      <div className="text-xs text-slate-400 mb-2 text-center">{label}</div>
+      <div className={`tarot-card-flip ${flipped ? 'flipped' : ''}`}>
+        {/* Рубашка карты */}
+        <div className="tarot-card-face tarot-card-back">
+          <div className="tarot-back-pattern">
+            <div className="tarot-back-symbol">✦</div>
+          </div>
+        </div>
+        {/* Лицевая сторона */}
+        <div className="tarot-card-face tarot-card-front" style={{ borderColor: data.color + '80' }}>
+          {data.isMajor ? (
+            <>
+              <div className="tarot-card-number" style={{ color: data.color }}>
+                {data.displayNumber}
+              </div>
+              <div className="tarot-card-symbol">{data.symbol}</div>
+              <div className="tarot-card-name">{data.name}</div>
+            </>
+          ) : (
+            <>
+              <div className="tarot-card-rank" style={{ color: data.color }}>
+                {data.rank}
+              </div>
+              <div className="tarot-card-symbol">{data.symbol}</div>
+              <div className="tarot-card-suit-symbol" style={{ color: data.color }}>
+                {data.suitSymbol}
+              </div>
+              <div className="tarot-card-name">{data.name}</div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function TarotScreen({ onSubmit, reading, cards, loading, onBack }) {
   const [question, setQuestion] = useState('');
-  const [spreadType, setSpreadType] = useState(null); // null = выбор типа
+  const [spreadType, setSpreadType] = useState(null);
   const [category, setCategory] = useState(null);
+  const [cardsFlipped, setCardsFlipped] = useState([false, false, false]);
+
+  // Последовательно переворачиваем карты
+  function flipCardsSequentially() {
+    setTimeout(() => setCardsFlipped([true, false, false]), 500);
+    setTimeout(() => setCardsFlipped([true, true, false]), 1200);
+    setTimeout(() => setCardsFlipped([true, true, true]), 1900);
+  }
+
+  // Если карты пришли — запускаем анимацию
+  if (cards && !cardsFlipped[0]) {
+    flipCardsSequentially();
+  }
 
   function handleSubmit(e) {
     e.preventDefault();
     if (!question.trim()) return;
+    setCardsFlipped([false, false, false]);
     onSubmit(question, spreadType, category);
   }
 
@@ -86,7 +146,6 @@ export default function TarotScreen({ onSubmit, reading, cards, loading, onBack 
     );
   }
 
-  // Названия для карточек в зависимости от типа расклада
   const cardLabels = spreadType === 'past_present_future'
     ? ['Прошлое', 'Настоящее', 'Будущее']
     : ['Ситуация', 'Препятствие', 'Совет'];
@@ -151,18 +210,17 @@ export default function TarotScreen({ onSubmit, reading, cards, loading, onBack 
         {/* Результат расклада */}
         {cards && reading && (
           <div>
-            {/* Три карты */}
+            {/* Три карты с анимацией переворота */}
             <div className="flex justify-center gap-3 mb-6">
               {cards.map((card, i) => (
-                <div
+                <TarotCard
                   key={i}
-                  className="tarot-card-animate mystic-card text-center flex-1 px-2 py-4"
-                  style={{ animationDelay: `${i * 0.3}s` }}
-                >
-                  <div className="text-3xl mb-2">{cardEmojis[i]}</div>
-                  <div className="text-xs text-slate-400 mb-1">{cardLabels[i]}</div>
-                  <div className="text-sm font-semibold text-purple-300">{card}</div>
-                </div>
+                  card={card}
+                  label={cardLabels[i]}
+                  emoji={cardEmojis[i]}
+                  delay={i * 0.3}
+                  flipped={cardsFlipped[i]}
+                />
               ))}
             </div>
 
