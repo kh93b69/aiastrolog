@@ -159,11 +159,11 @@ export default function TarotScreen({ onSubmit, reading, cards, loading, onBack 
       <div className="max-w-sm mx-auto animate-fade-in">
         <button
           onClick={() => {
-            if (!reading && !loading) {
+            if (reading || loading) {
+              onBack();
+            } else {
               setSpreadType(null);
               setCategory(null);
-            } else {
-              onBack();
             }
           }}
           className="text-slate-400 mb-6 flex items-center gap-2"

@@ -1,6 +1,7 @@
 import os
+import secrets
 import traceback
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -21,7 +22,10 @@ app.add_middleware(
 )
 
 # Путь к собранному фронтенду
-STATIC_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+STATIC_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "frontend", "dist"))
+
+# Секретный ключ для защищённых эндпоинтов (cron)
+ADMIN_SECRET = os.getenv("ADMIN_SECRET", secrets.token_hex(32))
 
 
 # === Модели запросов ===
@@ -51,6 +55,11 @@ class HoroscopeRequest(BaseModel):
 
 class NatalChartRequest(BaseModel):
     telegram_id: int
+
+
+class ReferralRequest(BaseModel):
+    telegram_id: int  # кто пришёл по ссылке
+    referrer_id: int   # кто пригласил
 
 
 # === Эндпоинты ===
@@ -178,6 +187,16 @@ def get_horoscope(data: HoroscopeRequest):
 @app.post("/api/tarot")
 def get_tarot_reading(data: TarotRequest):
     """Получить расклад Астро-Таро"""
+    # Валидация входных данных
+    allowed_spread_types = {"past_present_future", "category"}
+    allowed_categories = {"relationships", "work_money", "self_discovery", None}
+    if data.spread_type not in allowed_spread_types:
+        raise HTTPException(status_code=400, detail="Неизвестный тип расклада")
+    if data.category not in allowed_categories:
+        raise HTTPException(status_code=400, detail="Неизвестная категория")
+    if len(data.question) > 500:
+        raise HTTPException(status_code=400, detail="Вопрос слишком длинный")
+
     user = db.get_user(data.telegram_id)
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
@@ -219,24 +238,31 @@ def get_readings(telegram_id: int):
 
 
 @app.post("/api/referral")
-def process_referral(data: UserCreate):
+def process_referral(data: ReferralRequest):
     """Обработать реферальную ссылку — начислить бонус пригласившему"""
-    if not data.username:
-        raise HTTPException(status_code=400, detail="Не указан referrer_id")
+    if data.referrer_id == data.telegram_id:
+        raise HTTPException(status_code=400, detail="Нельзя пригласить себя")
 
-    referrer_id = int(data.username)  # передаём referrer_id через username
-    referrer = db.get_user(referrer_id)
+    referrer = db.get_user(data.referrer_id)
     if not referrer:
         raise HTTPException(status_code=404, detail="Пригласивший не найден")
 
-    # Начисляем бонус пригласившему
-    new_limits = db.add_referral_bonus(referrer_id)
+    # Проверяем, что у текущего пользователя ещё нет referrer_id (бонус только 1 раз)
+    current_user = db.get_user(data.telegram_id)
+    if current_user and current_user.get("referrer_id"):
+        return {"status": "already_referred"}
+
+    # Записываем реферера и начисляем бонус
+    db.set_referrer(data.telegram_id, data.referrer_id)
+    new_limits = db.add_referral_bonus(data.referrer_id)
     return {"status": "ok", "limits": new_limits}
 
 
 @app.post("/api/limits/reset")
-def reset_limits():
-    """Сброс лимитов (вызывать по понедельникам через cron)"""
+def reset_limits(x_admin_secret: Optional[str] = Header(None)):
+    """Сброс лимитов (вызывать по понедельникам через cron, требует секрет)"""
+    if x_admin_secret != ADMIN_SECRET:
+        raise HTTPException(status_code=403, detail="Доступ запрещён")
     db.reset_all_limits()
     return {"status": "ok", "message": "Лимиты сброшены"}
 
@@ -256,7 +282,13 @@ if os.path.exists(STATIC_DIR):
     @app.get("/{path:path}")
     def serve_frontend(path: str):
         """Отдаём файл или index.html для SPA"""
-        file_path = os.path.join(STATIC_DIR, path)
+        file_path = os.path.normpath(os.path.join(STATIC_DIR, path))
+        # Защита от path traversal (../../../etc/passwd)
+        if not file_path.startswith(STATIC_DIR):
+            response = FileResponse(os.path.join(STATIC_DIR, "index.html"))
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            return response
         if os.path.isfile(file_path):
             return FileResponse(file_path)
         response = FileResponse(os.path.join(STATIC_DIR, "index.html"))

@@ -59,9 +59,9 @@ export function getReadings(telegramId) {
 }
 
 // Отправить реферал
-export function processReferral(referrerId) {
+export function processReferral(telegramId, referrerId) {
   return api.post('/api/referral', {
-    telegram_id: 0,
-    username: String(referrerId),
+    telegram_id: telegramId,
+    referrer_id: referrerId,
   });
 }

@@ -62,7 +62,7 @@ function App() {
       const startParam = getStartParam();
       if (startParam && !res.data.user.onboarding_done) {
         try {
-          await processReferral(parseInt(startParam));
+          await processReferral(tgUser.id, parseInt(startParam));
         } catch (e) {
           // Реферал не критичен
         }

@@ -29,7 +29,14 @@ export default function HoroscopeScreen({ horoscope, loading, onBack }) {
               {horoscope}
             </div>
           </div>
-        ) : null}
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-slate-400 mb-6">Не удалось загрузить прогноз. Попробуй позже.</p>
+            <button onClick={onBack} className="mystic-btn">
+              ← Вернуться
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

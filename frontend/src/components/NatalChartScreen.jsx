@@ -39,7 +39,7 @@ export default function NatalChartScreen({ natalChart, reading, loading, onConti
             <div className="mystic-card mb-6">
               <h3 className="text-sm text-slate-400 mb-3">Планеты в твоей карте</h3>
               <div className="space-y-2">
-                {natalChart.planets.map((planet, i) => (
+                {(natalChart.planets || []).map((planet, i) => (
                   <div key={i} className="flex items-center justify-between text-sm">
                     <span className="text-slate-300">
                       {planet.emoji} {planet.name}
