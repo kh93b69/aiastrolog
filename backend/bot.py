@@ -5,7 +5,7 @@ from aiogram.types import (
     WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton,
     LabeledPrice, PreCheckoutQuery,
 )
-from config import TELEGRAM_BOT_TOKEN, WEBAPP_URL
+from config import TELEGRAM_BOT_TOKEN, WEBAPP_URL, ADMIN_TELEGRAM_ID
 import database as db
 
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
@@ -77,6 +77,20 @@ async def process_successful_payment(message: types.Message):
     }
     msg = pack_names.get(pack_type, "Пакет активирован!")
     await message.answer(f"{msg}\n\nОткрой Новеллу, чтобы продолжить 🔮")
+
+    # Уведомление админу о покупке
+    if ADMIN_TELEGRAM_ID:
+        try:
+            username = message.from_user.username or "без юзернейма"
+            admin_msg = (
+                f"💰 Новая покупка!\n\n"
+                f"Пользователь: @{username} (ID: {telegram_id})\n"
+                f"Пакет: {pack['title']}\n"
+                f"Сумма: {payment.total_amount} ⭐"
+            )
+            await bot.send_message(int(ADMIN_TELEGRAM_ID), admin_msg)
+        except Exception:
+            pass  # Уведомление не критично
 
 
 async def create_invoice_link(pack_type: str, telegram_id: int) -> str:

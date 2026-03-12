@@ -8,3 +8,4 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 WEBAPP_URL = os.getenv("WEBAPP_URL", "http://localhost:5173")
+ADMIN_TELEGRAM_ID = os.getenv("ADMIN_TELEGRAM_ID")  # Твой telegram_id для уведомлений о покупках
