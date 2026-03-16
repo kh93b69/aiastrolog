@@ -11,6 +11,7 @@ from typing import Optional
 import database as db
 import ai_service
 import astro_service
+from config import ADMIN_TELEGRAM_ID
 
 app = FastAPI(title="Novella API")
 
@@ -76,8 +77,10 @@ def health():
 
 
 @app.get("/debug/astro")
-def debug_astro():
-    """Проверка работы kerykeion"""
+def debug_astro(x_admin_secret: Optional[str] = Header(None)):
+    """Проверка работы kerykeion (только для админа)"""
+    if x_admin_secret != ADMIN_SECRET:
+        raise HTTPException(status_code=403, detail="Доступ запрещён")
     try:
         test_data = astro_service.calculate_natal_chart("2000-01-01", "12:00", "Moscow")
         return {"status": "ok", "sun_sign": test_data["sun_sign"]}
@@ -86,7 +89,7 @@ def debug_astro():
 
 
 @app.post("/api/user/register")
-def register_user(data: UserCreate):
+async def register_user(data: UserCreate):
     """Регистрация пользователя (или возврат существующего)"""
     user = db.get_user(data.telegram_id)
     if user:
@@ -97,6 +100,21 @@ def register_user(data: UserCreate):
 
     user = db.create_user(data.telegram_id, data.username)
     limits = db.create_user_limits(data.telegram_id)
+
+    # Уведомление админу о новом пользователе
+    if ADMIN_TELEGRAM_ID:
+        try:
+            from bot import bot
+            username_str = f"@{data.username}" if data.username else "без юзернейма"
+            await bot.send_message(
+                int(ADMIN_TELEGRAM_ID),
+                f"👤 Новый пользователь!\n\n"
+                f"Пользователь: {username_str}\n"
+                f"ID: {data.telegram_id}"
+            )
+        except Exception:
+            pass  # Уведомление не критично
+
     return {"user": user, "limits": limits}
 
 

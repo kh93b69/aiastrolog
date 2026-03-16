@@ -5,6 +5,7 @@ export default function Dashboard({ limits, telegramId, onHoroscope, onTarot, on
   const horoscopeLeft = limits ? limits.horoscope_limit - limits.horoscope_used : 0;
   const tarotLeft = limits ? limits.tarot_limit - limits.tarot_used : 0;
   const isPremium = limits?.is_premium;
+  const premiumUntil = limits?.premium_until;
   const [readings, setReadings] = useState([]);
 
   // Загружаем историю раскладов
@@ -37,9 +38,16 @@ export default function Dashboard({ limits, telegramId, onHoroscope, onTarot, on
             Новелла
           </h1>
           {isPremium && (
-            <span className="inline-block mt-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white">
-              👑 VIP
-            </span>
+            <div className="mt-1">
+              <span className="inline-block text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white">
+                👑 VIP
+              </span>
+              {premiumUntil && (
+                <div className="text-[10px] text-slate-500 mt-1">
+                  до {formatDate(premiumUntil)}
+                </div>
+              )}
+            </div>
           )}
         </div>
 

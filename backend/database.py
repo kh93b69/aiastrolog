@@ -20,7 +20,6 @@ PACKS = {
         "title": "Вайб недели",
         "description": "5 раскладов + безлимит прогнозов на 7 дней",
         "stars": 99,
-        "horoscope_bonus": 99,  # фактически безлимит
         "tarot_bonus": 5,
         "premium_days": 7,
     },
@@ -83,12 +82,11 @@ def get_user_limits(telegram_id: int, auto_reset=True):
 
         week_start = datetime.fromisoformat(limits["week_start"].replace("Z", "+00:00"))
         if week_start < current_week_start:
-            # Новая неделя — сбрасываем счётчики, восстанавливаем базовые лимиты
+            # Новая неделя — сбрасываем только счётчики использования
+            # Лимиты НЕ трогаем — купленные бонусы (Impulse) сохраняются
             update = {
                 "horoscope_used": 0,
                 "tarot_used": 0,
-                "horoscope_limit": 2,
-                "tarot_limit": 3,
                 "week_start": current_week_start.isoformat(),
             }
             # Проверяем, не истёк ли premium
@@ -145,7 +143,14 @@ def increment_usage(telegram_id: int, usage_type: str):
 
 def reset_all_limits():
     """Сброс лимитов для всех пользователей (вызывается по понедельникам)"""
-    supabase.table("user_limits").update({"horoscope_used": 0, "tarot_used": 0}).neq("telegram_id", 0).execute()
+    now = datetime.now(timezone.utc)
+    current_week_start = now - timedelta(days=now.weekday(), hours=now.hour, minutes=now.minute, seconds=now.second)
+    current_week_start = current_week_start.replace(microsecond=0)
+    supabase.table("user_limits").update({
+        "horoscope_used": 0,
+        "tarot_used": 0,
+        "week_start": current_week_start.isoformat(),
+    }).neq("telegram_id", 0).execute()
 
 
 # === История запросов ===
