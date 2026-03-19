@@ -205,6 +205,14 @@ def get_horoscope(data: HoroscopeRequest):
     # Сохраняем в историю
     db.save_reading(data.telegram_id, "horoscope", "Звёздный чек-ап", horoscope)
 
+    # Уведомление если лимиты исчерпаны после этого запроса
+    if not new_limits.get("is_premium") and new_limits["horoscope_used"] >= new_limits["horoscope_limit"]:
+        try:
+            from bot import send_limits_exhausted
+            asyncio.get_event_loop().create_task(send_limits_exhausted(data.telegram_id))
+        except Exception:
+            pass
+
     return {"horoscope": horoscope, "limits": new_limits}
 
 
@@ -250,6 +258,14 @@ def get_tarot_reading(data: TarotRequest):
 
     # Сохраняем в историю
     db.save_reading(data.telegram_id, "tarot", data.question, reading, cards)
+
+    # Уведомление если лимиты исчерпаны после этого запроса
+    if not new_limits.get("is_premium") and new_limits["tarot_used"] >= new_limits["tarot_limit"]:
+        try:
+            from bot import send_limits_exhausted
+            asyncio.get_event_loop().create_task(send_limits_exhausted(data.telegram_id))
+        except Exception:
+            pass
 
     return {"cards": cards, "reading": reading, "limits": new_limits}
 
@@ -312,6 +328,19 @@ async def create_invoice(data: InvoiceRequest):
         raise HTTPException(status_code=500, detail="Не удалось создать инвойс")
 
     return {"invoice_link": link}
+
+
+@app.get("/api/admin/stats")
+def admin_stats(x_admin_secret: Optional[str] = Header(None)):
+    """Статистика сервиса: пользователи, платежи (только для админа)"""
+    if x_admin_secret != ADMIN_SECRET:
+        raise HTTPException(status_code=403, detail="Доступ запрещён")
+    user_ids = db.get_all_user_ids()
+    payments_count = db.get_payments_count()
+    return {
+        "total_users": len(user_ids),
+        "total_payments": payments_count,
+    }
 
 
 @app.post("/api/limits/reset")

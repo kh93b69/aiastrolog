@@ -2,7 +2,7 @@
 import os
 import asyncio
 import uvicorn
-from bot import bot, dp
+from bot import bot, dp, daily_scheduler
 
 
 async def start_bot():
@@ -21,7 +21,7 @@ async def start_api():
 
 
 async def main():
-    await asyncio.gather(start_bot(), start_api())
+    await asyncio.gather(start_bot(), start_api(), daily_scheduler())
 
 
 if __name__ == "__main__":

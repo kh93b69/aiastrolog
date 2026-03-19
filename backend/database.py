@@ -203,6 +203,24 @@ def set_referrer(telegram_id: int, referrer_id: int):
     supabase.table("users").update({"referrer_id": referrer_id}).eq("telegram_id", telegram_id).execute()
 
 
+def get_all_user_ids():
+    """Получить список telegram_id всех пользователей"""
+    result = supabase.table("users").select("telegram_id").execute()
+    return [row["telegram_id"] for row in result.data]
+
+
+def get_all_limits():
+    """Получить лимиты всех пользователей"""
+    result = supabase.table("user_limits").select("*").execute()
+    return result.data
+
+
+def get_payments_count():
+    """Получить количество платежей"""
+    result = supabase.table("payments").select("id", count="exact").execute()
+    return result.count
+
+
 # === Платежи ===
 
 def save_payment(telegram_id: int, pack_type: str, stars_amount: int, telegram_charge_id: str):
